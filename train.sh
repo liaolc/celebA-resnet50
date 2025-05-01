@@ -1,3 +1,6 @@
+python main.py -d /home/liaolc/masks/data/celebA \ 
+  -dl /home/liaolc/masks/data/lfw
+
 python main.py -d /mnt/lustre/yslan/Dataset/CelebA/CelebA \
   -dl /mnt/lustre/yslan/Dataset/CelebA/lfw \
   -pt \
