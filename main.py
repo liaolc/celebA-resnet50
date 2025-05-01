@@ -260,7 +260,7 @@ def main():
 
     # Get current timestamp for log directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    experiment_name = "v7-fp32_celebA_resnet_50"
+    experiment_name = "v8-fp32_celebA_resnet_50"
     
     # Create a more organized log directory structure with timestamp
     log_dir = os.path.join("log", "celebA-resnet50", f"{experiment_name}_{timestamp}")
@@ -427,6 +427,7 @@ def main():
             lambda_alignment=hyperparams['initial_lambda_alignment'],
             upper_mask_level_threshold=0.8,
             train_sample_prob=train_sample_prob,
+            enc_lambda_alignment=hyperparams['enc_lambda_alignment']
         )
 
     if args.focal:
@@ -770,33 +771,34 @@ def default_hyperparams(log_dir):
     # Masking loss hyperparameters
     initial_lambda_mask = 0.0 # Start with no masking penalty
     final_lambda_mask = 0.20  # End with strong masking penalty
-    start_epoch_mask = 5  # Epoch to start applying mask loss (0 = from beginning)
+    start_epoch_mask = 4  # Epoch to start applying mask loss (0 = from beginning)
     
     # Binary loss hyperparameters
     initial_lambda_fully_masked = 0.04  # Start with small fully masked loss weight
     final_lambda_fully_masked = 0.2 # End with stronger fully masked loss weight
-    start_epoch_fully_masked = 2  # Epoch to start applying binary loss (0 = from beginning)
+    start_epoch_fully_masked = 4  # Epoch to start applying binary loss (0 = from beginning)
     
     # Smoothness regularization hyperparameters
     initial_lambda_smoothness = 0.01  # Start with some smoothness regularization
     final_lambda_smoothness = 0.01  # End with stronger smoothness regularization
-    start_epoch_smoothness = 2  # Epoch to start applying smoothness loss (0 = from beginning)
+    start_epoch_smoothness = 4  # Epoch to start applying smoothness loss (0 = from beginning)
     
     # Dynamic masked loss weighting parameters
     dynamic_masked_weight_min = 1.0  # Minimum weight multiplier
     dynamic_masked_weight_max = 2.0  # Maximum weight multiplier
-    start_epoch_dynamic_weight = 1  # Epoch to start applying dynamic weighting (0 = from beginning)
+    start_epoch_dynamic_weight = 4  # Epoch to start applying dynamic weighting (0 = from beginning)
     
     # Alignment loss hyperparameters
     initial_lambda_alignment = 0.5 # Start with moderate alignment loss weight
     final_lambda_alignment = 0.8    # End with stronger alignment loss weight
     start_epoch_alignment = 1  # Epoch to start applying alignment loss (0 = from beginning)
     
+    enc_lambda_alignment = 1
     # Radial mask hyperparameters
     radial_radius = 1  # Radius of influence for radial mask (in pixels)
     radial_decay = 0.4  # Decay factor for how quickly the influence decays with distance
 
-    experiment_name = 'v7-fp32_celebA_resnet_50'
+    experiment_name = 'encv1-fp32_celebA_resnet_50'
 
     # Print experiment configuration
     print(f"Experiment: {experiment_name}")
@@ -812,6 +814,7 @@ def default_hyperparams(log_dir):
     print(f"Initial/Final Lambda Alignment: {initial_lambda_alignment}/{final_lambda_alignment} (Start Epoch: {start_epoch_alignment})")
     print(f"Radial Mask Parameters: Radius={radial_radius}, Decay={radial_decay}")
     print(f"Dynamic Masked Weight Range:h {dynamic_masked_weight_min} to {dynamic_masked_weight_max} (Start Epoch: {start_epoch_dynamic_weight})")
+    print(f"Encoder Alignment Loss: {enc_lambda_alignment}")
 
     # Save hyperparameters as JSON
     hyperparameters = {
@@ -838,6 +841,7 @@ def default_hyperparams(log_dir):
         "radial_radius": radial_radius,
         "radial_decay": radial_decay,
         "experiment_name": experiment_name,
+        "enc_lambda_alignment": enc_lambda_alignment,
     }
     
     # Save hyperparameters to JSON file

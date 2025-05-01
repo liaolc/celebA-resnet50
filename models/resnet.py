@@ -241,6 +241,9 @@ class ResNet(nn.Module):
         unmasked_mlp_features = []
         masked_mlp_features = []
 
+        masked_encoding = masked_x.clone()
+        unmasked_encoding = x.clone()
+
         unmasked_logits = []
         for i in range(self.num_attributes):
             classifier = getattr(self, "classifier" + str(i).zfill(2))
@@ -266,7 +269,9 @@ class ResNet(nn.Module):
             'unmasked_logits': unmasked_logits,
             'masked_logits': masked_logits,
             'unmasked_mlp_features': unmasked_mlp_features,
-            'masked_mlp_features': masked_mlp_features
+            'masked_mlp_features': masked_mlp_features,
+            'masked_encoding': masked_encoding,
+            'unmasked_encoding': unmasked_encoding
         }
     
 
@@ -509,7 +514,7 @@ class Classifier(nn.Module):
 class MaskedLoss(nn.Module):
     def __init__(self, lambda_mask=1.0, lambda_fully_masked=0.05, lambda_smoothness=0.1, 
                  dynamic_masked_weight_min=1.0, dynamic_masked_weight_max=5.0,
-                 lambda_alignment=0.5, upper_mask_level_threshold=0.8, train_sample_prob=1.0):  # Add threshold parameter
+                 lambda_alignment=0.5, upper_mask_level_threshold=0.8, train_sample_prob=1.0, enc_lambda_alignment=0.5):  # Add threshold parameter
         super(MaskedLoss, self).__init__()
         self.lambda_mask = lambda_mask
         self.lambda_fully_masked = lambda_fully_masked
@@ -520,6 +525,8 @@ class MaskedLoss(nn.Module):
         # Parameters for dynamic masked loss weighting
         self.dynamic_masked_weight_min = dynamic_masked_weight_min
         self.dynamic_masked_weight_max = dynamic_masked_weight_max
+
+        self.enc_lambda_alignment = enc_lambda_alignment
         
         # self.mask_binauroc = BinaryAUROC().to('cuda')
         # self.unmask_binauroc = BinaryAUROC().to('cuda')
@@ -536,6 +543,9 @@ class MaskedLoss(nn.Module):
         mask = outputs['mask']
         unmasked_logits = outputs['unmasked_logits']
         masked_logits = outputs['masked_logits']
+        masked_encoding = outputs['masked_encoding']
+        unmasked_encoding = outputs['unmasked_encoding']
+
 
         # self.mask_binauroc.update(masked_logits, targets.float())
         # self.unmask_binauroc.update(unmasked_logits, targets.float())
@@ -606,12 +616,17 @@ class MaskedLoss(nn.Module):
         
         # Apply weight to the alignment loss
         alignment_loss = self.lambda_alignment * alignment_divergence
+
+        # 6. Encoding alignment loss 
+        enc_alignment_similarity = torch.sum(unmasked_encoding * masked_encoding, dim=1)
+        enc_alignment_divergence = 1.0 - enc_alignment_similarity.mean() 
+        enc_alignment_loss = self.enc_lambda_alignment * enc_alignment_divergence
         
         # Total loss with alignment term
         total_loss = classification_loss + masking_loss + binary_loss + smoothness_term 
         
-        unet_loss = total_loss 
-        resnet_loss = masked_loss_mean + unmasked_loss_mean + alignment_loss
+        unet_loss = enc_alignment_loss 
+        resnet_loss = masked_loss_mean + unmasked_loss_mean 
 
         # Calculate binary mask metrics (only count fully masked pixels > threshold)
         fully_masked_pixels = (radial_mask > self.upper_mask_level_threshold).float()
@@ -633,5 +648,6 @@ class MaskedLoss(nn.Module):
             'binary_mask_mean': torch.mean(radial_mask).item(),  # Use radial mask instead of hard_mask
             'fully_masked_pct': fully_masked_pct,
             'dynamic_weight': dynamic_weight,
+            'enc_alignment_loss': enc_alignment_loss,
             
         }
